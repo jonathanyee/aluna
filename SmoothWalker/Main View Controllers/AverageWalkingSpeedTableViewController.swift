@@ -47,11 +47,12 @@ class AverageWalkingSpeedTableViewController: HealthQueryTableViewController {
 
     @objc
     override func didTapFetchButton() {
-        Network.pull() { [weak self] (serverResponse) in
-            self?.dateLastUpdated = serverResponse.date
-            self?.queryPredicate = createLastWeekPredicate(from: serverResponse.date)
-            self?.handleServerResponse(serverResponse)
-        }
+//        Network.pull() { [weak self] (serverResponse) in
+//            self?.dateLastUpdated = serverResponse.date
+//            self?.queryPredicate = createLastWeekPredicate(from: serverResponse.date)
+//            self?.handleServerResponse(serverResponse)
+//        }
+        writeMockData()
     }
 
     // MARK: - Network
@@ -81,6 +82,32 @@ class AverageWalkingSpeedTableViewController: HealthQueryTableViewController {
         }
 
         HealthData.healthStore.save(addedSamples) { (success, error) in
+            if success {
+                self.loadData()
+            }
+        }
+    }
+
+    private func writeMockData() {
+        var samples = [HKQuantitySample]()
+        let today = Date()
+        for i in 0..<30 {
+            guard
+                let date = Calendar.current.date(byAdding: .day, value: -i, to: today),
+                let sampleType = HKQuantityType.quantityType(forIdentifier: .walkingSpeed)
+            else { return }
+            
+            let randomDouble = Double.random(in: 0...1.5)
+            let quantity = HKQuantity(unit: .meter().unitDivided(by: .second()), doubleValue: randomDouble)
+
+            let quantitySample = HKQuantitySample(type: sampleType,
+                                                  quantity: quantity,
+                                                  start: date,
+                                                  end: date)
+            samples.append(quantitySample)
+        }
+
+        HealthData.healthStore.save(samples) { (success, error) in
             if success {
                 self.loadData()
             }
