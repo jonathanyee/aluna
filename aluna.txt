@@ -1,0 +1,30 @@
+# Take home test for Senior iOS Engineer
+
+> Project should be done in Swift.
+> 
+
+1.  Start by uploading [this](https://docs-assets.developer.apple.com/published/ae09943a8b/CreatingAMobilityHealthApp.zip) code to Github (more detail on the code [here](https://developer.apple.com/documentation/healthkit/creating_a_mobility_health_app))
+
+2.  Create a separate feature branch
+
+3.  Add a page that displays the average walking speed over these timelines:
+
+a.  Daily
+
+b.  Weekly
+
+c.  Monthly
+
+4.  Modify the design/assets as needed to make the app look more impressive,
+
+and have the new page fit in properly.
+
+5.  Make sure the app can be run on a phone and can showcase the above
+
+features (we’ll be test the app on our own phones)
+
+This is an open ended project, so if you have any questions, feel free to make your
+
+own choice. Reach out to us if you think we would like to know your choices.
+
+To submit your exercise, send us an email with a link to the pull request to engineering-interviews@alunacare.com
