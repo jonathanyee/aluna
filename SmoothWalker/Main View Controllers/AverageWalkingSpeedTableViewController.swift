@@ -6,20 +6,36 @@
 //  Copyright © 2023 Apple. All rights reserved.
 //
 
+import CareKitUI
 import Foundation
 import HealthKit
 import UIKit
 
-class AverageWalkingSpeedTableViewController: HealthQueryTableViewController {
-    /// The date from the latest server response.
-    private var dateLastUpdated: Date?
+class AverageWalkingSpeedTableViewController: UIViewController {
+
+    private lazy var segmentedControl: UISegmentedControl = {
+        let view = UISegmentedControl(items: ["Daily", "Weekly", "Monthly"])
+        view.addTarget(self, action: #selector(segmentedValueChanged(_:)), for: .valueChanged)
+        return view
+    }()
+
+    private lazy var chartView: OCKCartesianChartView = {
+        let chartView = OCKCartesianChartView(type: .line)
+        return chartView
+    }()
+
+    private let dataTypeIdentifier = HKQuantityTypeIdentifier.walkingSpeed.rawValue
+    private var dataValues: [HealthDataTypeValue] = []
+
+    private var queryPredicate: NSPredicate? = nil
+    private var queryAnchor: HKQueryAnchor? = nil
+    private var queryLimit: Int = HKObjectQueryNoLimit
 
     // MARK: Initializers
 
     init() {
-        super.init(dataTypeIdentifier: HKQuantityTypeIdentifier.walkingSpeed.rawValue)
+        super.init(nibName: nil, bundle: nil)
 
-        // Set weekly predicate
         queryPredicate = createLastWeekPredicate()
     }
 
@@ -43,61 +59,54 @@ class AverageWalkingSpeedTableViewController: HealthQueryTableViewController {
         }
     }
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUpMockDataButton()
+        setupView()
+    }
+
     // MARK: - Selector Overrides
 
-    @objc
-    override func didTapFetchButton() {
-//        Network.pull() { [weak self] (serverResponse) in
-//            self?.dateLastUpdated = serverResponse.date
-//            self?.queryPredicate = createLastWeekPredicate(from: serverResponse.date)
-//            self?.handleServerResponse(serverResponse)
-//        }
+    @objc func segmentedValueChanged(_ sender:UISegmentedControl!) {
+        print("Selected Segment Index is : \(sender.selectedSegmentIndex)")
+    }
+    @objc func didTapAddMockDataButton() {
         writeMockData()
     }
 
-    // MARK: - Network
+    // MARK: - Private methods
 
-    /// Handle a response fetched from a remote server. This function will also save any HealthKit samples and update the UI accordingly.
-    override func handleServerResponse(_ serverResponse: ServerResponse) {
-        let weeklyReport = serverResponse.weeklyReport
-        let addedSamples = weeklyReport.samples.map { (serverHealthSample) -> HKQuantitySample in
+    private func setUpMockDataButton() {
+        let barButtonItem = UIBarButtonItem(title: "Add Mock Data", style: .plain, target: self, action: #selector(didTapAddMockDataButton))
 
-            // Set the sync identifier and version
-            var metadata = [String: Any]()
-            let sampleSyncIdentifier = String(format: "%@_%@", weeklyReport.identifier, serverHealthSample.syncIdentifier)
+        navigationItem.rightBarButtonItem = barButtonItem
+    }
 
-            metadata[HKMetadataKeySyncIdentifier] = sampleSyncIdentifier
-            metadata[HKMetadataKeySyncVersion] = serverHealthSample.syncVersion
+    private func setupView() {
+        view.backgroundColor = .white
+        let stack = UIStackView(arrangedSubviews: [segmentedControl, chartView])
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .vertical
+        view.addSubview(stack)
 
-            // Create HKQuantitySample
-            let quantity = HKQuantity(unit: .meter(), doubleValue: serverHealthSample.value)
-            let sampleType = HKQuantityType.quantityType(forIdentifier: .walkingSpeed)!
-            let quantitySample = HKQuantitySample(type: sampleType,
-                                                  quantity: quantity,
-                                                  start: serverHealthSample.startDate,
-                                                  end: serverHealthSample.endDate,
-                                                  metadata: metadata)
-
-            return quantitySample
-        }
-
-        HealthData.healthStore.save(addedSamples) { (success, error) in
-            if success {
-                self.loadData()
-            }
-        }
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+        ])
     }
 
     private func writeMockData() {
         var samples = [HKQuantitySample]()
         let today = Date()
-        for i in 0..<30 {
+        for i in 0..<365 {
             guard
                 let date = Calendar.current.date(byAdding: .day, value: -i, to: today),
                 let sampleType = HKQuantityType.quantityType(forIdentifier: .walkingSpeed)
             else { return }
             
-            let randomDouble = Double.random(in: 0...1.5)
+            let randomDouble = Double.random(in: 0...2)
             let quantity = HKQuantity(unit: .meter().unitDivided(by: .second()), doubleValue: randomDouble)
 
             let quantitySample = HKQuantitySample(type: sampleType,
@@ -114,17 +123,66 @@ class AverageWalkingSpeedTableViewController: HealthQueryTableViewController {
         }
     }
 
-    // MARK: Function Overrides
+    private func loadData() {
+        performQuery { [weak self] in
+            guard let self = self else { return }
 
-    override func reloadData() {
-        super.reloadData()
+            DispatchQueue.main.async {
+                self.chartView.applyDefaultConfiguration()
 
-        DispatchQueue.main.async {
-            self.chartView.graphView.horizontalAxisMarkers = createHorizontalAxisMarkers()
+                self.chartView.headerView.titleLabel.text = getDataTypeName(for: self.dataTypeIdentifier)
 
-            if let dateLastUpdated = self.dateLastUpdated {
-                self.chartView.headerView.detailLabel.text = createChartDateLastUpdatedLabel(dateLastUpdated)
+                self.dataValues.sort { $0.startDate < $1.startDate }
+
+                let sampleStartDates = self.dataValues.map { $0.startDate }
+
+                self.chartView.graphView.horizontalAxisMarkers = createHorizontalAxisMarkers(for: sampleStartDates)
+
+                let data = self.dataValues.compactMap { CGFloat($0.value) }
+                guard
+                    let unit = preferredUnit(for: self.dataTypeIdentifier),
+                    let unitTitle = getUnitDescription(for: unit)
+                else {
+                    return
+                }
+
+                var dataSeries = OCKDataSeries(values: data, title: unitTitle)
+                dataSeries.size = 2
+                
+                self.chartView.graphView.dataSeries = [
+                    dataSeries
+                ]
             }
         }
     }
+
+    private func performQuery(completion: @escaping () -> Void) {
+        guard let sampleType = getSampleType(for: dataTypeIdentifier) else { return }
+
+        let anchoredObjectQuery = HKAnchoredObjectQuery(type: sampleType,
+                                                        predicate: queryPredicate,
+                                                        anchor: queryAnchor,
+                                                        limit: queryLimit) {
+            (query, samplesOrNil, deletedObjectsOrNil, anchor, errorOrNil) in
+
+            guard let samples = samplesOrNil else { return }
+
+            self.dataValues = samples.map { (sample) -> HealthDataTypeValue in
+                var dataValue = HealthDataTypeValue(startDate: sample.startDate,
+                                                    endDate: sample.endDate,
+                                                    value: .zero)
+                if let quantitySample = sample as? HKQuantitySample,
+                   let unit = preferredUnit(for: quantitySample) {
+                    dataValue.value = quantitySample.quantity.doubleValue(for: unit)
+                }
+
+                return dataValue
+            }
+
+            completion()
+        }
+
+        HealthData.healthStore.execute(anchoredObjectQuery)
+    }
+
 }
