@@ -16,6 +16,7 @@ class AverageWalkingSpeedTableViewController: UIViewController {
     private lazy var segmentedControl: UISegmentedControl = {
         let view = UISegmentedControl(items: ["Daily", "Weekly", "Monthly"])
         view.addTarget(self, action: #selector(segmentedValueChanged(_:)), for: .valueChanged)
+        view.selectedSegmentIndex = 1
         return view
     }()
 
@@ -67,8 +68,21 @@ class AverageWalkingSpeedTableViewController: UIViewController {
 
     // MARK: - Selector Overrides
 
-    @objc func segmentedValueChanged(_ sender:UISegmentedControl!) {
-        print("Selected Segment Index is : \(sender.selectedSegmentIndex)")
+    @objc func segmentedValueChanged(_ sender: UISegmentedControl) {
+        let index = sender.selectedSegmentIndex
+        if index == 0 {
+            // daily
+            queryPredicate = createDailyPredicate()
+        } else if index == 1 {
+            // weekly
+            queryPredicate = createLastWeekPredicate()
+
+        } else {
+            // monthly
+            queryPredicate = createMonthlyPredicate()
+        }
+
+        loadData()
     }
     @objc func didTapAddMockDataButton() {
         writeMockData()
@@ -134,9 +148,15 @@ class AverageWalkingSpeedTableViewController: UIViewController {
 
                 self.dataValues.sort { $0.startDate < $1.startDate }
 
-                let sampleStartDates = self.dataValues.map { $0.startDate }
 
-                self.chartView.graphView.horizontalAxisMarkers = createHorizontalAxisMarkers(for: sampleStartDates)
+                let selectedIndex = self.segmentedControl.selectedSegmentIndex
+                if selectedIndex == 0 {
+                    self.chartView.graphView.horizontalAxisMarkers = ["12am", "6", "12pm", "6"]
+                } else if selectedIndex == 1 {
+                    self.chartView.graphView.horizontalAxisMarkers = createHorizontalAxisMarkers()
+                } else {
+                    self.chartView.graphView.horizontalAxisMarkers = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                }
 
                 let data = self.dataValues.compactMap { CGFloat($0.value) }
                 guard
@@ -147,7 +167,7 @@ class AverageWalkingSpeedTableViewController: UIViewController {
                 }
 
                 var dataSeries = OCKDataSeries(values: data, title: unitTitle)
-                dataSeries.size = 2
+                dataSeries.size = 1
                 
                 self.chartView.graphView.dataSeries = [
                     dataSeries

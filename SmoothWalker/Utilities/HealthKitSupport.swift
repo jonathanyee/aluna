@@ -82,6 +82,12 @@ func createAnchorDate() -> Date {
     return anchorDate
 }
 
+func createDailyPredicate() -> NSPredicate {
+    let today = Date()
+    let beginningOfToday = Calendar.current.startOfDay(for: today)
+    return HKQuery.predicateForSamples(withStart: beginningOfToday, end: today)
+}
+
 /// This is commonly used for date intervals so that we get the last seven days worth of data,
 /// because we assume today (`Date()`) is providing data as well.
 func getLastWeekStartDate(from date: Date = Date()) -> Date {
@@ -90,6 +96,11 @@ func getLastWeekStartDate(from date: Date = Date()) -> Date {
 
 func createLastWeekPredicate(from endDate: Date = Date()) -> NSPredicate {
     let startDate = getLastWeekStartDate(from: endDate)
+    return HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+}
+
+func createMonthlyPredicate(from endDate: Date = Date()) -> NSPredicate {
+    let startDate = Calendar.current.date(byAdding: .month, value: -12, to: endDate)
     return HKQuery.predicateForSamples(withStart: startDate, end: endDate)
 }
 
