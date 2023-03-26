@@ -30,7 +30,8 @@ class MainTabViewController: UITabBarController {
             createWelcomeViewController(),
             createWeeklyQuantitySampleTableViewController(),
             createChartViewController(),
-            createWeeklyReportViewController()
+            createWeeklyReportViewController(),
+            createAverageWalkingSpeedTableViewController()
         ]
         
         self.viewControllers = viewControllers.map {
@@ -75,6 +76,15 @@ class MainTabViewController: UITabBarController {
         viewController.tabBarItem = UITabBarItem(title: "Weekly Report",
                                                  image: UIImage(systemName: "star"),
                                                  selectedImage: UIImage(systemName: "star.fill"))
+        return viewController
+    }
+
+    private func createAverageWalkingSpeedTableViewController() -> UIViewController {
+        let viewController = AverageWalkingSpeedViewController()
+
+        viewController.tabBarItem = UITabBarItem(title: "Avg Speed",
+                                                 image: UIImage(systemName: "figure.walk.circle"),
+                                                 selectedImage: UIImage(systemName: "figure.walk.circle.fill"))
         return viewController
     }
     

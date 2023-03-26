@@ -25,6 +25,8 @@ func getDataTypeName(for identifier: String) -> String? {
             description = "Distance Walking + Running"
         case .sixMinuteWalkTestDistance:
             description = "Six-Minute Walk"
+        case .walkingSpeed:
+            description = "Walking Speed"
         default:
             break
         }
@@ -73,6 +75,8 @@ func getUnitDescription(for unit: HKUnit) -> String? {
         return "steps"
     case .meter():
         return "meters"
+    case .meter().unitDivided(by: .second()):
+        return "meters/second"
     default:
         return nil
     }
@@ -84,6 +88,8 @@ private func getUnitSuffix(for unit: HKUnit) -> String? {
         return "steps"
     case .meter():
         return "m"
+    case .meter().unitDivided(by: .second()):
+        return "m/s"
     default:
         return nil
     }
