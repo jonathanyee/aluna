@@ -80,7 +80,7 @@ class MainTabViewController: UITabBarController {
     }
 
     private func createAverageWalkingSpeedTableViewController() -> UIViewController {
-        let viewController = AverageWalkingSpeedTableViewController()
+        let viewController = AverageWalkingSpeedViewController()
 
         viewController.tabBarItem = UITabBarItem(title: "Avg Speed",
                                                  image: UIImage(systemName: "figure.walk.circle"),
